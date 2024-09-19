@@ -1,0 +1,19 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.swp
+
+# Virtual environment
+venv/
+env/
+
+# Data
+data/
+
+# Results
+train_result/
+
+# Jupyter Notebook
+.ipynb_checkpoints/
