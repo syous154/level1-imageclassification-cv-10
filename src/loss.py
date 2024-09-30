@@ -1,29 +1,47 @@
-# src/loss.py
-
+import torch
 import torch.nn as nn
+import torch.nn.functional as F
 
-class Loss(nn.Module):
-    """
-    모델의 손실 함수를 계산하는 클래스.
-    현재는 CrossEntropyLoss를 사용하지만, 필요에 따라 다른 손실 함수로 확장 가능.
-    """
+# Soft Target Cross Entropy Loss for Mixup
+class SoftTargetCrossEntropy(nn.Module):
     def __init__(self):
-        super(Loss, self).__init__()
-        self.loss_fn = nn.CrossEntropyLoss()
+        super(SoftTargetCrossEntropy, self).__init__()
 
-    def forward(
-        self, 
-        outputs: torch.Tensor, 
-        targets: torch.Tensor
-    ) -> torch.Tensor:
-        """
-        순전파 단계에서 손실을 계산합니다.
+    def forward(self, x, target):
+        loss = torch.sum(-target * F.log_softmax(x, dim=-1), dim=-1)
+        return loss.mean()
 
-        Args:
-            outputs (torch.Tensor): 모델의 출력 logits.
-            targets (torch.Tensor): 실제 레이블.
+# Label Smoothing Loss
+class LabelSmoothingLoss(nn.Module):
+    def __init__(self, classes, smoothing=0.1, dim=-1):
+        super(LabelSmoothingLoss, self).__init__()
+        self.confidence = 1.0 - smoothing
+        self.smoothing = smoothing
+        self.cls = classes
+        self.dim = dim
 
-        Returns:
-            torch.Tensor: 계산된 손실 값.
-        """
-        return self.loss_fn(outputs, targets)
+    def forward(self, pred, target):
+        pred = pred.log_softmax(dim=self.dim)
+        with torch.no_grad():
+            true_dist = torch.zeros_like(pred)
+            true_dist.fill_(self.smoothing / (self.cls - 1))
+            true_dist.scatter_(1, target.data.unsqueeze(1), self.confidence)
+        return torch.mean(torch.sum(-true_dist * pred, dim=self.dim))
+
+# 손실 함수 선택
+class Loss(nn.Module):
+    def __init__(self, num_classes, label_smoothing=0.0, mixup=False):
+        super().__init__()
+        self.num_classes = num_classes
+        self.label_smoothing = label_smoothing
+        self.mixup = mixup
+        
+        if self.mixup:
+            self.criterion = SoftTargetCrossEntropy()
+        elif self.label_smoothing > 0:
+            self.criterion = LabelSmoothingLoss(classes=num_classes, smoothing=label_smoothing)
+        else:
+            self.criterion = nn.CrossEntropyLoss()
+
+    def forward(self, outputs, targets):
+        return self.criterion(outputs, targets)

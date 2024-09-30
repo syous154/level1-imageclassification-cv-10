@@ -1,69 +1,47 @@
+import cv2
 import numpy as np
-from PIL import Image
+import torch
 import albumentations as A
 from albumentations.pytorch import ToTensorV2
-from torchvision import transforms
-import torch
 
-class TorchvisionTransform:
-    def __init__(self, is_train: bool = True):
+class Transforms:
+    @staticmethod
+    def get_transform(is_train: bool = True):
+        # 공통 변환
         common_transforms = [
-            transforms.Resize((224, 224)),
-            transforms.ToTensor(),
-            transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+            A.LongestMaxSize(max_size=224), # 가장 큰 축에 맞춰 크기 조정
+            A.PadIfNeeded(min_height=224, min_width=224, border_mode=cv2.BORDER_REFLECT), # 패딩 추가해 224x224 resize
+            A.ToGray(p=1.0), # Greyscale 변환
+            A.CLAHE(clip_limit=2.0, tile_grid_size=(8, 8), p=1.0), # CLAME 적용
+            A.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]), # 정규화
+            ToTensorV2() # 텐서 변환
         ]
-        
+        # 훈련용 변환
         if is_train:
-            self.transform = transforms.Compose(
-                [
-                    transforms.RandomHorizontalFlip(p=0.5),
-                    transforms.RandomRotation(15),
-                    transforms.ColorJitter(brightness=0.2, contrast=0.2),
-                ] + common_transforms
-            )
+            train_transforms = [
+                A.HorizontalFlip(p=0.5), # 수평 flip(50% 확률)
+                A.Rotate(limit=15), # 15도 이내 회전
+                A.RandomBrightnessContrast(p=0.2), # 밝기 및 대비 조절
+                A.GaussNoise(var_limit=(10.0, 50.0), p=0.5), # 가우시안 노이즈
+            ]
+            return A.Compose(train_transforms + common_transforms)
+        # 검증/테스트용 변환
         else:
-            self.transform = transforms.Compose(common_transforms)
+            return A.Compose(common_transforms)
 
-    def __call__(self, image: np.ndarray) -> torch.Tensor:
-        image = Image.fromarray(image)
-        transformed = self.transform(image)
-        return transformed
-
-class AlbumentationsTransform:
-    def __init__(self, is_train: bool = True):
-        common_transforms = [
-            A.Resize(224, 224),
-            A.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
-            ToTensorV2()
-        ]
-        
-        if is_train:
-            self.transform = A.Compose(
-                [
-                    A.HorizontalFlip(p=0.5),
-                    A.Rotate(limit=15),
-                    A.RandomBrightnessContrast(p=0.2),
-                ] + common_transforms
-            )
-        else:
-            self.transform = A.Compose(common_transforms)
-
-    def __call__(self, image) -> torch.Tensor:
+    @staticmethod
+    def __call__(image):
         if not isinstance(image, np.ndarray):
             raise TypeError("Image should be a NumPy array (OpenCV format).")
-        transformed = self.transform(image=image)
+        
+        transform = Transforms.get_transform(is_train=True) 
+        transformed = transform(image=image)
         return transformed['image']
 
 class TransformSelector:
     def __init__(self, transform_type: str):
-        if transform_type in ["torchvision", "albumentations"]:
-            self.transform_type = transform_type
-        else:
-            raise ValueError("Unknown transformation library specified.")
+        self.transform_type = transform_type
 
     def get_transform(self, is_train: bool):
-        if self.transform_type == 'torchvision':
-            transform = TorchvisionTransform(is_train=is_train)
-        elif self.transform_type == 'albumentations':
-            transform = AlbumentationsTransform(is_train=is_train)
-        return transform
+        if self.transform_type == "albumentations":
+            return Transforms.get_transform(is_train)
