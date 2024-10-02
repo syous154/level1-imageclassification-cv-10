@@ -1,6 +1,6 @@
 # Sketch Image Classification
 ## Overview
-2024.09.10 ~ 2022.09.26
+2024.09.10 ~ 2024.09.26
 
 This project focuses on classifying ImageNet-Sketch images as part of a private competition organized by Naver Connect Foundation and Upstage.
 
