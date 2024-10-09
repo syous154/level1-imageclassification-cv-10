@@ -102,3 +102,19 @@ To perform ensemble prediction:
 ```bash
 python ensemble.py
 ```
+
+### Model Results
+
+#### CNN 모델 결과
+![CNN 모델 결과](https://github.com/user-attachments/assets/64603d91-ad7a-4461-bf1e-fad6e1c1d6d8)
+
+#### Vit 모델 결과
+![Vit 모델 결과](https://github.com/user-attachments/assets/9d33abbd-786c-4840-a39b-a681a0ec8b62)
+
+#### Hybrid 모델 결과
+![Hybrid 모델 결과](https://github.com/user-attachments/assets/65e23fc5-9c2e-465f-b16e-e8e405b30aae)
+
+#### Ensemble 결과
+![Ensemble 결과](https://github.com/user-attachments/assets/0a8fda5d-3599-45c0-8494-30efd9528de2)
+
+
